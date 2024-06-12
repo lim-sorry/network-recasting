@@ -8,9 +8,22 @@ from torchvision.utils import _log_api_usage_once
 from torchvision.models.resnet import BasicBlock, Bottleneck, conv1x1, conv3x3
 
 
+class FCBlock(nn.Module):
+    def __init__(self, inplanes:int, planes:int) -> None:
+        super().__init__()
+        self.inplanes = inplanes
+        self.planes = planes
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(inplanes, planes)
+
+    def forward(self, x):
+        x = self.avgpool(x)
+        x = self.fc(x)
+        return x
+
+
 class ConvBlock(nn.Module):
     expansion: int = 1
-
     def __init__(
         self,
         inplanes: int,
@@ -77,9 +90,8 @@ class CustomResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.layers = self._make_layer(block, 16, layers[0])\
                     + self._make_layer(block, 32, layers[1], stride=2, dilate=replace_stride_with_dilation[0])\
-                    + self._make_layer(block, 64, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(64 * block.expansion, num_classes)
+                    + self._make_layer(block, 64, layers[2], stride=2, dilate=replace_stride_with_dilation[1])\
+                    + nn.Sequential(FCBlock(64 * block.expansion, num_classes))
 
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Linear)):
